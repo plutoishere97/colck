@@ -19,7 +19,12 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ error: "missing code" }) };
   }
 
-  const store = getStore("redclock");
+  // Automatic zero-config Blobs (siteID/token injected by the platform)
+  // isn't reliable in every deploy setup, so this falls back to explicit
+  // credentials from environment variables when they're present.
+  const store = process.env.BLOBS_SITE_ID && process.env.BLOBS_TOKEN
+    ? getStore({ name: "redclock", siteID: process.env.BLOBS_SITE_ID, token: process.env.BLOBS_TOKEN })
+    : getStore("redclock");
   const key = "state-" + code;
 
   if (event.httpMethod === "GET") {
