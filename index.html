@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>紅光電子鐘</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#000000;
+    --panel:#140505;
+    --panel-2:#1c0808;
+    --line:#3a1414;
+    --red:#ff2b2b;
+    --red-soft:#ff5757;
+    --red-dim:#5c1414;
+    --red-glow:rgba(255,43,43,.55);
+    --text-muted:#b46a6a;
+    --text-faint:#7a4444;
+    --ok:#3ddc7a;
+    --warn:#e0a83d;
+    --font-display:'Orbitron',ui-monospace,monospace;
+    --font-mono:'IBM Plex Mono',ui-monospace,'Courier New',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--bg);
+    color:var(--text-muted);
+    font-family:var(--font-mono);
+    overflow:hidden;
+  }
+  #app{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  [hidden]{display:none!important;}
+  button{
+    font-family:inherit;
+    cursor:pointer;
+    border:none;
+    background:none;
+    color:inherit;
+    -webkit-tap-highlight-color:transparent;
+  }
+  button:focus-visible,input:focus-visible{
+    outline:2px solid var(--red-soft);
+    outline-offset:3px;
+  }
+  input{
+    font-family:var(--font-mono);
+    background:#0c0303;
+    border:1px solid var(--line);
+    color:var(--red-soft);
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:1rem;
+    letter-spacing:.08em;
+  }
+
+  /* ---------- setup screen ---------- */
+  .setup{
+    width:min(460px,100%);
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+  }
+  .setup .eyebrow{
+    font-size:.72rem;
+    letter-spacing:.28em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    text-align:center;
+  }
+  .setup h1{
+    font-family:var(--font-display);
+    font-weight:800;
+    font-size:clamp(1.4rem,5vw,1.9rem);
+    color:var(--red-soft);
+    margin:0;
+    text-align:center;
+    letter-spacing:.02em;
+    text-wrap:balance;
+  }
+  .setup p.sub{
+    margin:0;
+    font-size:.82rem;
+    line-height:1.7;
+    color:var(--text-muted);
+    text-align:center;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .field label{
+    font-size:.72rem;
+    letter-spacing:.08em;
+    color:var(--text-faint);
+  }
+  .code-row{
+    display:flex;
+    gap:10px;
+  }
+  .code-row input{flex:1;text-transform:uppercase;text-align:center;font-size:1.15rem;}
+  .mini-btn{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:0 14px;
+    font-size:.75rem;
+    color:var(--text-muted);
+  }
+  .mini-btn:hover{border-color:var(--red-dim);color:var(--red-soft);}
+
+  .role-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  @media (max-width:400px){ .role-grid{grid-template-columns:1fr;} }
+  .role-card{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:14px;
+    padding:16px 14px;
+    text-align:left;
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .role-card[aria-pressed="true"]{border-color:var(--red);background:var(--panel-2);}
+  .role-card:hover{border-color:var(--red-dim);}
+  .role-card .role-name{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:.95rem;
+    color:var(--red-soft);
+  }
+  .role-card .role-desc{font-size:.74rem;line-height:1.55;color:var(--text-muted);}
+
+  .start-btn{
+    border:1px solid var(--red-dim);
+    background:var(--panel-2);
+    color:var(--red-soft);
+    border-radius:12px;
+    padding:14px;
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:.95rem;
+    letter-spacing:.04em;
+    text-align:center;
+  }
+  .start-btn:disabled{opacity:.4;cursor:not-allowed;}
+  .start-btn:not(:disabled):hover{border-color:var(--red);}
+
+  .note{
+    font-size:.68rem;
+    line-height:1.7;
+    color:var(--text-faint);
+    text-align:center;
+  }
+
+  /* ---------- display mode ---------- */
+  .stage{
+    position:fixed;inset:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    background:
+      repeating-linear-gradient(to bottom, rgba(255,43,43,.028) 0px, rgba(255,43,43,.028) 1px, transparent 1px, transparent 3px),
+      radial-gradient(ellipse at 50% 50%, #0a0202 0%, #000000 72%);
+  }
+  .clock-time{
+    font-family:var(--font-display);font-weight:900;
+    font-size:clamp(4.2rem,24vw,15rem);line-height:1;color:var(--red);
+    letter-spacing:.02em;font-variant-numeric:tabular-nums;
+    text-shadow:0 0 6px var(--red-glow),0 0 22px var(--red-glow),0 0 70px rgba(255,43,43,.35);
+    user-select:none;display:flex;align-items:baseline;
+  }
+  .clock-time.has-seconds{font-size:clamp(2.8rem,16vw,10rem);}
+  .clock-time .colon{display:inline-block;transition:opacity .12s linear;}
+  .clock-time .colon.dim{opacity:.18;}
+  .status-chip{
+    position:fixed;left:20px;bottom:18px;display:flex;align-items:center;gap:8px;
+    font-size:.72rem;color:var(--text-faint);letter-spacing:.04em;
+    opacity:0;transition:opacity .4s ease;pointer-events:none;
+  }
+  .stage.show-chrome .status-chip{opacity:1;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--red-dim);flex:none;}
+  .dot.connected{background:var(--ok);box-shadow:0 0 6px rgba(61,220,122,.7);}
+  .dot.warn{background:var(--warn);box-shadow:0 0 6px rgba(224,168,61,.7);}
+  .toolbar{position:fixed;right:16px;bottom:16px;display:flex;gap:10px;opacity:0;transition:opacity .4s ease;}
+  .stage.show-chrome .toolbar{opacity:1;}
+  .tool-btn{width:42px;height:42px;border-radius:10px;border:1px solid var(--line);background:rgba(20,5,5,.8);display:flex;align-items:center;justify-content:center;color:var(--text-muted);}
+  .tool-btn:hover{border-color:var(--red-dim);color:var(--red-soft);}
+  .tool-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;}
+
+  /* ---------- remote mode ---------- */
+  .remote{width:min(440px,100%);display:flex;flex-direction:column;gap:22px;}
+  .remote header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px;}
+  .remote header .title{font-family:var(--font-display);font-weight:800;font-size:1.1rem;color:var(--red-soft);}
+  .remote header .conn{display:flex;align-items:center;gap:7px;font-size:.68rem;color:var(--text-faint);white-space:nowrap;}
+  .btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:400px){ .btn-grid{grid-template-columns:1fr;} }
+  .time-btn{
+    position:relative;border:1px solid var(--line);background:var(--panel);border-radius:16px;
+    padding:22px 14px;min-height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    transition:border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .time-btn:active{transform:scale(.97);}
+  .time-btn .t{font-family:var(--font-display);font-weight:800;font-size:1.9rem;color:var(--red-dim);font-variant-numeric:tabular-nums;transition:color .15s ease, text-shadow .15s ease;}
+  .time-btn .label{font-size:.74rem;color:var(--text-faint);letter-spacing:.04em;}
+  .time-btn[aria-pressed="true"]{border-color:var(--red);background:var(--panel-2);}
+  .time-btn[aria-pressed="true"] .t{color:var(--red);text-shadow:0 0 14px var(--red-glow);}
+  .time-btn[aria-pressed="true"] .label{color:var(--red-soft);}
+  .play-btn{
+    min-height:76px;
+    flex-direction:row;
+    justify-content:center;
+    gap:12px;
+  }
+  .play-btn .t{font-size:1.1rem;}
+  .play-btn .label{border-left:1px solid var(--line);padding-left:12px;max-width:200px;line-height:1.4;}
+  .remote footer{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.72rem;color:var(--text-faint);flex-wrap:wrap;}
+  .footer-link{text-decoration:underline;text-underline-offset:3px;color:var(--text-muted);}
+  .footer-link:hover{color:var(--red-soft);}
+
+  @media (prefers-reduced-motion:reduce){
+    .clock-time .colon{transition:none;}
+    *{animation:none!important;}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var ROLE_KEY = "redclock3.role";
+  var CODE_KEY = "redclock3.code";
+  var CACHE_KEY = "redclock3.lastKnownState";
+
+  var PRESETS = [
+    { time:"08:00", label:"早上 8 點" },
+    { time:"12:00", label:"中午 12 點" },
+    { time:"16:00", label:"下午 4 點" },
+    { time:"20:00", label:"晚上 8 點" }
+  ];
+
+  var app = document.getElementById("app");
+  var connState = "idle"; // idle | connecting | connected | error
+  var currentState = null; // {mode:"paused"|"running", anchorTime:"HH:MM:SS", anchorAt?, updatedAt}
+  var pendingRole = null;
+  var pendingCode = null;
+
+  function rndCode(len){
+    var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    var s = "";
+    for(var i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
+    return s;
+  }
+
+  function getRole(){ try{ return localStorage.getItem(ROLE_KEY); }catch(e){ return null; } }
+  function getCode(){ try{ return localStorage.getItem(CODE_KEY); }catch(e){ return null; } }
+  function save(role, code){
+    try{
+      localStorage.setItem(ROLE_KEY, role);
+      localStorage.setItem(CODE_KEY, code);
+    }catch(e){}
+    render();
+    connect();
+  }
+  function reset(){
+    try{ localStorage.removeItem(ROLE_KEY); localStorage.removeItem(CODE_KEY); }catch(e){}
+    disconnect();
+    render();
+  }
+  function cacheState(state){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(state)); }catch(e){} }
+  function readCachedState(){
+    try{
+      var raw = localStorage.getItem(CACHE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  function gearIcon(){
+    return '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
+  }
+  function expandIcon(){
+    return '<svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>';
+  }
+
+  // ---------------- render ----------------
+
+  function render(){
+    var role = getRole(), code = getCode();
+    if(role && code) { if(role==="display") renderDisplay(); else renderRemote(); }
+    else renderSetup();
+  }
+
+  function renderSetup(){
+    var existingCode = getCode() || rndCode(5);
+    pendingRole = pendingRole || getRole() || null;
+    pendingCode = pendingCode || existingCode;
+
+    app.innerHTML =
+      '<div class="setup">' +
+        '<div class="eyebrow">紅光電子鐘</div>' +
+        '<h1>設定這台裝置</h1>' +
+        '<p class="sub">兩台裝置只要輸入「同一組配對代碼」，就能互相同步。代碼可以自己改，兩台都要一樣（一個網站可以同時給好幾組裝置各自使用，只要代碼不同就不會互相干擾）。</p>' +
+        '<div class="field">' +
+          '<label>配對代碼（兩台裝置需一致）</label>' +
+          '<div class="code-row">' +
+            '<input id="codeInput" maxlength="12" value="' + pendingCode + '">' +
+            '<button class="mini-btn" id="rndBtn">重新產生</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="field">' +
+          '<label>這台裝置的用途</label>' +
+          '<div class="role-grid">' +
+            '<button class="role-card" data-role="display" aria-pressed="' + (pendingRole==="display") + '">' +
+              '<span class="role-name">顯示螢幕</span>' +
+              '<span class="role-desc">投影到螢幕、平板或筆電，全螢幕顯示時間。</span>' +
+            '</button>' +
+            '<button class="role-card" data-role="remote" aria-pressed="' + (pendingRole==="remote") + '">' +
+              '<span class="role-name">遙控器</span>' +
+              '<span class="role-desc">用手機或筆電遠端切換時間。</span>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+        '<button class="start-btn" id="startBtn" disabled>開始</button>' +
+        '<p class="note">兩台裝置只需要能連上這個網站本身即可同步，不會另外呼叫其他外部服務。代碼並非加密保護，請勿用於機密場合。</p>' +
+      '</div>';
+
+    var codeInput = document.getElementById("codeInput");
+    var startBtn = document.getElementById("startBtn");
+
+    function refreshStart(){
+      startBtn.disabled = !(pendingRole && pendingCode && pendingCode.trim().length >= 3);
+    }
+    refreshStart();
+
+    codeInput.addEventListener("input", function(){
+      pendingCode = codeInput.value.trim().toUpperCase();
+      refreshStart();
+    });
+    document.getElementById("rndBtn").addEventListener("click", function(){
+      pendingCode = rndCode(5);
+      codeInput.value = pendingCode;
+      refreshStart();
+    });
+    app.querySelectorAll(".role-card").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        pendingRole = btn.dataset.role;
+        app.querySelectorAll(".role-card").forEach(function(b){ b.setAttribute("aria-pressed", b===btn); });
+        refreshStart();
+      });
+    });
+    startBtn.addEventListener("click", function(){
+      if(startBtn.disabled) return;
+      save(pendingRole, pendingCode);
+    });
+  }
+
+  // ---------------- time math ----------------
+  // A clock value is stored as seconds-since-midnight so "running" mode can
+  // add real elapsed time to whatever value was showing when Play was
+  // pressed — the display counts forward from THAT point, not from the
+  // device's actual wall-clock time.
+
+  function hmsToSeconds(hms){
+    var p = (hms || "00:00:00").split(":").map(Number);
+    return (p[0]||0)*3600 + (p[1]||0)*60 + (p[2]||0);
+  }
+  function secondsToHms(total){
+    total = ((total % 86400) + 86400) % 86400;
+    function pad(n){ return String(n).padStart(2,"0"); }
+    var h = Math.floor(total/3600), m = Math.floor((total%3600)/60), s = Math.floor(total%60);
+    return pad(h) + ":" + pad(m) + ":" + pad(s);
+  }
+  function nowHms(){
+    var d = new Date();
+    return secondsToHms(d.getHours()*3600 + d.getMinutes()*60 + d.getSeconds());
+  }
+  // What should be showing RIGHT NOW for a given state, on this device.
+  function computeDisplaySeconds(state){
+    if(!state) return hmsToSeconds(nowHms());
+    if(state.mode === "running"){
+      var elapsed = Math.floor((Date.now() - state.anchorAt) / 1000);
+      return hmsToSeconds(state.anchorTime) + Math.max(0, elapsed);
+    }
+    return hmsToSeconds(state.anchorTime);
+  }
+
+  function renderDisplay(){
+    // No state yet at all (first-ever load, nothing cached): show the
+    // device's own current time, paused, rather than a blank screen.
+    var state = currentState || readCachedState() || { mode:"paused", anchorTime: nowHms() };
+    currentState = state;
+
+    var running = state.mode === "running";
+    var initialText = secondsToHms(computeDisplaySeconds(state));
+
+    app.innerHTML =
+      '<div class="stage" id="stage">' +
+        '<div class="clock-time' + (running ? ' has-seconds' : '') + '" id="clockTime">' + timeMarkup(initialText, running) + '</div>' +
+        '<div class="status-chip" id="statusChip"><span class="dot" id="statusDot"></span><span id="statusText">連線中…</span></div>' +
+        '<div class="toolbar">' +
+          '<button class="tool-btn" id="fsBtn" title="全螢幕顯示">' + expandIcon() + '</button>' +
+          '<button class="tool-btn" id="gearBtn" title="重新設定裝置">' + gearIcon() + '</button>' +
+        '</div>' +
+      '</div>';
+
+    var stage = document.getElementById("stage");
+    document.getElementById("gearBtn").addEventListener("click", reset);
+    document.getElementById("fsBtn").addEventListener("click", function(){
+      var el = document.documentElement;
+      if(document.fullscreenElement){ document.exitFullscreen(); }
+      else if(el.requestFullscreen){ el.requestFullscreen().catch(function(){}); }
+    });
+
+    var hideTimer = null;
+    function wake(){
+      stage.classList.add("show-chrome");
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(function(){ stage.classList.remove("show-chrome"); }, 3200);
+    }
+    stage.addEventListener("mousemove", wake);
+    stage.addEventListener("touchstart", wake, {passive:true});
+    wake();
+    updateConnUI();
+
+    if(running) startTicking(); else stopTicking();
+  }
+
+  // running mode shows HH:MM:SS with a steady colon (the moving seconds
+  // already read as "running"); paused mode shows HH:MM with a blinking
+  // colon, so a frozen preset never reads as if it were live-ticking.
+  function timeMarkup(t, running){
+    var parts = (t || "00:00:00").split(":");
+    var h = parts[0], m = parts[1] || "00", s = parts[2];
+    var colonClass = running ? "colon" : "colon blink";
+    var html = '<span>' + h + '</span><span class="' + colonClass + '">:</span><span>' + m + '</span>';
+    if(running && s !== undefined){
+      html += '<span class="' + colonClass + '">:</span><span>' + s + '</span>';
+    }
+    return html;
+  }
+
+  var colonTimer = null;
+  function startColonBlink(){
+    if(colonTimer) clearInterval(colonTimer);
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(reduce) return;
+    colonTimer = setInterval(function(){
+      document.querySelectorAll(".colon.blink").forEach(function(c){ c.classList.toggle("dim"); });
+    }, 600);
+  }
+  startColonBlink(); // runs once globally; harmless when no .colon.blink exists
+
+  var tickTimer = null;
+  function startTicking(){
+    stopTicking();
+    tick();
+    tickTimer = setInterval(tick, 1000);
+  }
+  function stopTicking(){
+    if(tickTimer){ clearInterval(tickTimer); tickTimer = null; }
+  }
+  function tick(){
+    var timeEl = document.getElementById("clockTime");
+    if(!timeEl || !currentState || currentState.mode !== "running"){ stopTicking(); return; }
+    timeEl.innerHTML = timeMarkup(secondsToHms(computeDisplaySeconds(currentState)), true);
+  }
+
+  function renderRemote(){
+    var code = getCode();
+    var state = currentState || readCachedState();
+    app.innerHTML =
+      '<div class="remote">' +
+        '<header>' +
+          '<span class="title">紅光電子鐘 · 遙控器</span>' +
+          '<span class="conn"><span class="dot" id="statusDot"></span><span id="statusText">連線中…</span></span>' +
+        '</header>' +
+        '<div class="btn-grid" id="btnGrid"></div>' +
+        '<button class="time-btn play-btn" id="playBtn" aria-pressed="' + (state && state.mode==="running") + '">' +
+          '<span class="t">▶ 播放</span>' +
+          '<span class="label">從目前畫面的時間開始，跟真實時間一起走</span>' +
+        '</button>' +
+        '<footer>' +
+          '<span>代碼：' + code + '</span>' +
+          '<button class="footer-link" id="gearBtn">重新設定裝置</button>' +
+        '</footer>' +
+      '</div>';
+
+    var grid = document.getElementById("btnGrid");
+    PRESETS.forEach(function(p){
+      var b = document.createElement("button");
+      b.className = "time-btn";
+      b.dataset.time = p.time;
+      b.setAttribute("aria-pressed", state && state.mode==="paused" && state.anchorTime === p.time+":00" ? "true" : "false");
+      b.innerHTML = '<span class="t">' + p.time + '</span><span class="label">' + p.label + '</span>';
+      b.addEventListener("click", function(){ publishFixed(p.time); });
+      grid.appendChild(b);
+    });
+    document.getElementById("playBtn").addEventListener("click", publishPlay);
+    document.getElementById("gearBtn").addEventListener("click", reset);
+    updateConnUI();
+  }
+
+  function updateRemoteButtons(){
+    if(getRole() !== "remote") return;
+    var state = currentState;
+    document.querySelectorAll(".time-btn[data-time]").forEach(function(btn){
+      btn.setAttribute("aria-pressed", state && state.mode==="paused" && state.anchorTime === btn.dataset.time+":00" ? "true" : "false");
+    });
+    var playBtn = document.getElementById("playBtn");
+    if(playBtn) playBtn.setAttribute("aria-pressed", state && state.mode==="running" ? "true" : "false");
+  }
+
+  function updateConnUI(){
+    var dot = document.getElementById("statusDot");
+    var text = document.getElementById("statusText");
+    if(!dot || !text) return;
+    dot.classList.remove("connected","warn");
+    if(connState === "connected"){ dot.classList.add("connected"); text.textContent = "已連線 · 即時同步"; }
+    else if(connState === "connecting"){ text.textContent = "連線中…"; }
+    else if(connState === "error"){ dot.classList.add("warn"); text.textContent = "連線中斷，重新連線中…"; }
+    else { text.textContent = "尚未連線"; }
+  }
+
+  // ---------------- sync via this site's own API (same-origin) ----------------
+  // The only network address either device needs to reach is this website
+  // itself — there is no separate third-party broker/notification domain
+  // that a phone network or locked-down WiFi could block independently of
+  // the page already having loaded successfully.
+
+  function apiUrl(){ return "/api/state?code=" + encodeURIComponent(getCode()); }
+
+  function sendState(state){
+    currentState = state;
+    cacheState(state);
+    updateRemoteButtons();
+    fetch(apiUrl(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state)
+    }).catch(function(){});
+  }
+
+  function publishFixed(t){
+    sendState({ mode:"paused", anchorTime:t+":00", updatedAt: new Date().toISOString() });
+  }
+  function publishPlay(){
+    var base = currentState || { mode:"paused", anchorTime: nowHms() };
+    var anchorTime = secondsToHms(computeDisplaySeconds(base));
+    sendState({ mode:"running", anchorTime:anchorTime, anchorAt: Date.now(), updatedAt: new Date().toISOString() });
+  }
+
+  function applyIncoming(data){
+    if(!data || (data.mode !== "paused" && data.mode !== "running") || !data.anchorTime) return;
+    if(currentState && currentState.updatedAt === data.updatedAt) return; // no change
+    currentState = data;
+    cacheState(data);
+    var role = getRole();
+    if(role === "display"){
+      renderDisplay();
+    } else if(role === "remote"){
+      updateRemoteButtons();
+    }
+  }
+
+  var pollTimer = null;
+
+  function disconnect(){
+    if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+    connState = "idle";
+  }
+
+  function poll(){
+    fetch(apiUrl())
+      .then(function(res){
+        connState = res.ok ? "connected" : "error";
+        updateConnUI();
+        return res.ok ? res.json() : null;
+      })
+      .then(function(data){ if(data) applyIncoming(data); })
+      .catch(function(){ connState = "error"; updateConnUI(); });
+  }
+
+  function connect(){
+    var role = getRole(), code = getCode();
+    if(!role || !code) return;
+    disconnect();
+    connState = "connecting";
+    updateConnUI();
+    poll();
+    pollTimer = setInterval(poll, 1000);
+  }
+
+  render();
+  if(getRole() && getCode()) connect();
+})();
+</script>
+</body>
+</html>
