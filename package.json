@@ -4,6 +4,6 @@
   "version": "1.0.0",
   "description": "紅光電子鐘 - self-hosted Netlify version",
   "dependencies": {
-    "@netlify/blobs": "^11.0.0"
+    "@netlify/blobs": "8.1.0"
   }
 }
