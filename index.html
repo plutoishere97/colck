@@ -218,6 +218,15 @@
   .time-btn[aria-pressed="true"]{border-color:var(--red);background:var(--panel-2);}
   .time-btn[aria-pressed="true"] .t{color:var(--red);text-shadow:0 0 14px var(--red-glow);}
   .time-btn[aria-pressed="true"] .label{color:var(--red-soft);}
+  .time-btn.wide{
+    grid-column:1 / -1;
+    min-height:76px;
+    flex-direction:row;
+    justify-content:center;
+    gap:12px;
+  }
+  .time-btn.wide .t{font-size:1.5rem;}
+  .time-btn.wide .label{border-left:1px solid var(--line);padding-left:12px;}
   .play-btn{
     min-height:76px;
     flex-direction:row;
@@ -248,10 +257,11 @@
   var CACHE_KEY = "redclock3.lastKnownState";
 
   var PRESETS = [
-    { time:"08:00", label:"早上 8 點" },
-    { time:"12:00", label:"中午 12 點" },
-    { time:"16:00", label:"下午 4 點" },
-    { time:"20:00", label:"晚上 8 點" }
+    { time:"10:00", label:"早上 10 點" },
+    { time:"13:00", label:"下午 1 點" },
+    { time:"17:00", label:"下午 5 點" },
+    { time:"21:00", label:"晚上 9 點" },
+    { time:"22:00", label:"晚上 10 點" }
   ];
 
   var app = document.getElementById("app");
@@ -498,9 +508,10 @@
       '</div>';
 
     var grid = document.getElementById("btnGrid");
-    PRESETS.forEach(function(p){
+    var isLastOdd = PRESETS.length % 2 === 1;
+    PRESETS.forEach(function(p, i){
       var b = document.createElement("button");
-      b.className = "time-btn";
+      b.className = "time-btn" + (isLastOdd && i === PRESETS.length - 1 ? " wide" : "");
       b.dataset.time = p.time;
       b.setAttribute("aria-pressed", state && state.mode==="paused" && state.anchorTime === p.time+":00" ? "true" : "false");
       b.innerHTML = '<span class="t">' + p.time + '</span><span class="label">' + p.label + '</span>';
