@@ -227,14 +227,6 @@
   }
   .time-btn.wide .t{font-size:1.5rem;}
   .time-btn.wide .label{border-left:1px solid var(--line);padding-left:12px;}
-  .play-btn{
-    min-height:76px;
-    flex-direction:row;
-    justify-content:center;
-    gap:12px;
-  }
-  .play-btn .t{font-size:1.1rem;}
-  .play-btn .label{border-left:1px solid var(--line);padding-left:12px;max-width:200px;line-height:1.4;}
   .remote footer{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.72rem;color:var(--text-faint);flex-wrap:wrap;}
   .footer-link{text-decoration:underline;text-underline-offset:3px;color:var(--text-muted);}
   .footer-link:hover{color:var(--red-soft);}
@@ -263,6 +255,12 @@
     { time:"21:00", label:"晚上 9 點" },
     { time:"22:00", label:"晚上 10 點" }
   ];
+
+  // How often each device checks the server for a new command. Bigger =
+  // fewer requests to Netlify's free plan; the on-screen clock stays smooth
+  // regardless (see the note by pollTimer below), it just takes up to this
+  // long to notice a button press from the other device.
+  var POLL_INTERVAL_MS = 5000;
 
   var app = document.getElementById("app");
   var connState = "idle"; // idle | connecting | connected | error
@@ -497,10 +495,6 @@
           '<span class="conn"><span class="dot" id="statusDot"></span><span id="statusText">連線中…</span></span>' +
         '</header>' +
         '<div class="btn-grid" id="btnGrid"></div>' +
-        '<button class="time-btn play-btn" id="playBtn" aria-pressed="' + (state && state.mode==="running") + '">' +
-          '<span class="t">▶ 播放</span>' +
-          '<span class="label">從目前畫面的時間開始，跟真實時間一起走</span>' +
-        '</button>' +
         '<footer>' +
           '<span>代碼：' + code + '</span>' +
           '<button class="footer-link" id="gearBtn">重新設定裝置</button>' +
@@ -513,12 +507,11 @@
       var b = document.createElement("button");
       b.className = "time-btn" + (isLastOdd && i === PRESETS.length - 1 ? " wide" : "");
       b.dataset.time = p.time;
-      b.setAttribute("aria-pressed", state && state.mode==="paused" && state.anchorTime === p.time+":00" ? "true" : "false");
+      b.setAttribute("aria-pressed", state && state.mode==="running" && state.anchorTime === p.time+":00" ? "true" : "false");
       b.innerHTML = '<span class="t">' + p.time + '</span><span class="label">' + p.label + '</span>';
       b.addEventListener("click", function(){ publishFixed(p.time); });
       grid.appendChild(b);
     });
-    document.getElementById("playBtn").addEventListener("click", publishPlay);
     document.getElementById("gearBtn").addEventListener("click", reset);
     updateConnUI();
   }
@@ -527,10 +520,8 @@
     if(getRole() !== "remote") return;
     var state = currentState;
     document.querySelectorAll(".time-btn[data-time]").forEach(function(btn){
-      btn.setAttribute("aria-pressed", state && state.mode==="paused" && state.anchorTime === btn.dataset.time+":00" ? "true" : "false");
+      btn.setAttribute("aria-pressed", state && state.mode==="running" && state.anchorTime === btn.dataset.time+":00" ? "true" : "false");
     });
-    var playBtn = document.getElementById("playBtn");
-    if(playBtn) playBtn.setAttribute("aria-pressed", state && state.mode==="running" ? "true" : "false");
   }
 
   function updateConnUI(){
@@ -564,12 +555,7 @@
   }
 
   function publishFixed(t){
-    sendState({ mode:"paused", anchorTime:t+":00", updatedAt: new Date().toISOString() });
-  }
-  function publishPlay(){
-    var base = currentState || { mode:"paused", anchorTime: nowHms() };
-    var anchorTime = secondsToHms(computeDisplaySeconds(base));
-    sendState({ mode:"running", anchorTime:anchorTime, anchorAt: Date.now(), updatedAt: new Date().toISOString() });
+    sendState({ mode:"running", anchorTime:t+":00", anchorAt: Date.now(), updatedAt: new Date().toISOString() });
   }
 
   function applyIncoming(data){
@@ -610,7 +596,12 @@
     connState = "connecting";
     updateConnUI();
     poll();
-    pollTimer = setInterval(poll, 1000);
+    // Polling only exists to notice a new preset pressed on the remote — the
+    // clock's own second-by-second ticking on screen is computed locally in
+    // tick() from anchorAt, so it stays perfectly smooth no matter how often
+    // this runs. Keeping this interval long (instead of every second) is
+    // what keeps a 24/7 display well inside Netlify's free-plan quota.
+    pollTimer = setInterval(poll, POLL_INTERVAL_MS);
   }
 
   render();
